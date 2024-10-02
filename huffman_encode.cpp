@@ -2,83 +2,108 @@
 #include <vector>
 #include <queue>
 #include <limits>
+#include <memory>
+#include <unordered_map>
+#include <algorithm>
 
 using namespace std;
 
 struct MinHeapNode {
-    char data;
+    wchar_t data;
     unsigned freq;
-    MinHeapNode *left, *right;
+    shared_ptr<MinHeapNode> left, right;
 
-    MinHeapNode(char data, unsigned freq) : data(data), freq(freq), left(nullptr), right(nullptr) {}
+    MinHeapNode(wchar_t data, unsigned freq) : data(data), freq(freq), left(nullptr), right(nullptr) {}
 };
 
 struct Compare {
-    bool operator()(MinHeapNode* l, MinHeapNode* r) {
-        return (l->freq > r->freq);
+    bool operator()(const shared_ptr<MinHeapNode>& l, const shared_ptr<MinHeapNode>& r) const {
+        return l->freq > r->freq || (l->freq == r->freq && l->data > r->data);
     }
 };
 
-void printCodes(MinHeapNode* root, string str) {
+void printCodes(const shared_ptr<MinHeapNode>& root, wstring str) {
     if (!root)
         return;
 
-    if (root->data != '$')
-        cout << root->data << ": " << str << "\n";
+    if (root->data != L'$')
+        wcout << root->data << L": " << str << L"\n";
 
-    printCodes(root->left, str + "0");
-    printCodes(root->right, str + "1");
+    printCodes(root->left, str + L"0");
+    printCodes(root->right, str + L"1");
 }
 
-void HuffmanCodes(vector<char>& data, vector<int>& freq) {
-    priority_queue<MinHeapNode*, vector<MinHeapNode*>, Compare> minHeap;
+void HuffmanCodes(const vector<wchar_t>& data, const vector<int>& freq) {
+    priority_queue<shared_ptr<MinHeapNode>, vector<shared_ptr<MinHeapNode>>, Compare> minHeap;
 
     for (size_t i = 0; i < data.size(); ++i)
-        minHeap.push(new MinHeapNode(data[i], freq[i]));
+        minHeap.push(make_shared<MinHeapNode>(data[i], freq[i]));
 
-    while (minHeap.size() != 1) {
-        MinHeapNode *left = minHeap.top();
+    while (minHeap.size() > 1) {
+        auto left = minHeap.top();
         minHeap.pop();
 
-        MinHeapNode *right = minHeap.top();
+        auto right = minHeap.top();
         minHeap.pop();
 
-        MinHeapNode *top = new MinHeapNode('$', left->freq + right->freq);
+        auto top = make_shared<MinHeapNode>(L'$', left->freq + right->freq);
         top->left = left;
         top->right = right;
         minHeap.push(top);
     }
 
-    printCodes(minHeap.top(), "");
+    if (!minHeap.empty())
+        printCodes(minHeap.top(), L"");
 }
 
 int main() {
     int size;
-    cout << "Enter the number of characters: ";
-    while (!(cin >> size) || size <= 0) {
-        cout << "Invalid input. Please enter a positive integer: ";
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    wcout << L"Enter the number of characters: ";
+    while (!(wcin >> size) || size <= 0) {
+        wcout << L"Invalid input. Please enter a positive integer: ";
+        wcin.clear();
+        wcin.ignore(numeric_limits<streamsize>::max(), L'\n');
     }
 
-    vector<char> data(size);
+    vector<wchar_t> data(size);
     vector<int> freq(size);
+    unordered_map<wchar_t, int> char_freq_map;
 
-    cout << "Enter " << size << " characters: ";
+    wcout << L"Enter " << size << L" characters: ";
     for (int i = 0; i < size; ++i) {
-        cin >> data[i];
+        wcin >> data[i];
+        if (char_freq_map.find(data[i]) != char_freq_map.end()) {
+            wcout << L"Error: Duplicate character '" << data[i] << L"'. Each character must be unique.\n";
+            return 1;
+        }
+        char_freq_map[data[i]] = i;
     }
 
-    cout << "Enter " << size << " frequencies: ";
+    wcout << L"Enter " << size << L" frequencies: ";
     for (int i = 0; i < size; ++i) {
-        while (!(cin >> freq[i]) || freq[i] < 0) {
-            cout << "Invalid frequency. Please enter a non-negative integer: ";
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        while (!(wcin >> freq[i]) || freq[i] < 0) {
+            wcout << L"Invalid frequency. Please enter a non-negative integer: ";
+            wcin.clear();
+            wcin.ignore(numeric_limits<streamsize>::max(), L'\n');
         }
     }
 
-    cout << "\nHuffman Codes:\n";
+    // Sort data and freq based on frequency (descending) and then character (ascending)
+    vector<pair<wchar_t, int>> char_freq_pairs(size);
+    for (int i = 0; i < size; ++i) {
+        char_freq_pairs[i] = {data[i], freq[i]};
+    }
+    sort(char_freq_pairs.begin(), char_freq_pairs.end(),
+         [](const auto& a, const auto& b) {
+             return a.second > b.second || (a.second == b.second && a.first < b.first);
+         });
+
+    for (int i = 0; i < size; ++i) {
+        data[i] = char_freq_pairs[i].first;
+        freq[i] = char_freq_pairs[i].second;
+    }
+
+    wcout << L"\nHuffman Codes:\n";
     HuffmanCodes(data, freq);
 
     return 0;
